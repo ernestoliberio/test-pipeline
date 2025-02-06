@@ -1,20 +1,30 @@
-name: Pull Request Linter
+name: Validate Pull Request
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, edited, synchronize]
 
 jobs:
-  lint:
+  validate-pr:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Check PR Title and Description
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const title = pr.title.trim();
+            const description = pr.body ? pr.body.trim() : "";
+            
+            const titleRegex = /^(feat|fix|refactor)(\([\w\-]+\)):\s.{10,}$/;
 
-      - name: Install dependencies
-        run: |
-          npm install
+            if (!title) {
+              core.setFailed("❌ El título del Pull Request no puede estar vacío.");
+            } else if (!titleRegex.test(title)) {
+              core.setFailed("🤡 El título del PR debe seguir la convención: 'tipo(área): descripción' (Ej: feat(auth): Agregar login)");
+            }
 
-      - name: Run linter
-        run: |
-          npx commitlint --from HEAD~1 --to HEAD
+            if (!description || description.length < 30) {
+              core.setFailed("❌ La descripción del Pull Request debe tener al menos 30 caracteres.");
+            }
